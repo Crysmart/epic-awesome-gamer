@@ -9,20 +9,21 @@ from typing import List, Optional
 
 import cloudscraper
 import yaml
-from undetected_chromedriver import Chrome
 
 from services.settings import logger
 from services.utils import (
     ToolBox,
     get_ctx,
     get_challenge_ctx,
+    ChallengeReset
 )
 from .core import AwesomeFreeMan
 from .exceptions import (
     AssertTimeout,
     SwitchContext,
     PaymentException,
-    AuthException
+    AuthException,
+    UnableToGet
 )
 
 
@@ -103,7 +104,7 @@ class CookieManager(AwesomeFreeMan):
     def refresh_ctx_cookies(
             self,
             verify: bool = True,
-            silence: bool = True
+            silence: bool = True,
     ) -> Optional[bool]:
         """
         更新上下文身份信息
@@ -152,6 +153,8 @@ class CookieManager(AwesomeFreeMan):
                     message="Identity token update failed."
                 ))
                 return False
+        except ChallengeReset:
+            pass
         except AuthException as e:
             logger.critical(ToolBox.runtime_report(
                 motive="SKIP",
@@ -162,11 +165,9 @@ class CookieManager(AwesomeFreeMan):
         else:
             # Store contextual authentication information.
             self.save_ctx_cookies(ctx_cookies=ctx.get_cookies())
-            return True
+            return self.is_available_cookie(ctx_cookies=ctx.get_cookies())
         finally:
-            if ctx:
-                ctx.close()
-                ctx.quit()
+            ctx.quit()
         # {{< Done >}}
 
 
@@ -184,13 +185,13 @@ class Bricklayer(AwesomeFreeMan):
             page_link: str = None,
             ctx_cookies: List[dict] = None,
             refresh: bool = True,
-            ctx: Chrome = None,
+            challenge: Optional[bool] = None
     ) -> Optional[bool]:
         """
         获取免费游戏
 
         部署后必须传输有效的 `page_link` 参数。
-        :param ctx:
+        :param challenge:
         :param page_link: 游戏购买页链接 zh-CN
         :param refresh: 当 COOKIE 失效时主动刷新 COOKIE
         :param ctx_cookies:
@@ -198,7 +199,6 @@ class Bricklayer(AwesomeFreeMan):
         """
         page_link = self.URL_FREE_GAME_TEST if page_link is None else page_link
         ctx_cookies = self.cookie_manager.load_ctx_cookies() if ctx_cookies is None else ctx_cookies
-        ctx = get_ctx(silence=self.silence) if ctx is None else ctx
         """
         [🚀] 验证 COOKIE
         _______________
@@ -220,6 +220,7 @@ class Bricklayer(AwesomeFreeMan):
         [🚀] 使用普通级别的上下文获取免费游戏
         _______________
         """
+        ctx = get_challenge_ctx(self.silence) if challenge else get_ctx(self.silence)
         try:
             self._get_free_game(page_link=page_link, api_cookies=ctx_cookies, ctx=ctx)
         except AssertTimeout:
@@ -228,20 +229,21 @@ class Bricklayer(AwesomeFreeMan):
                 action_name=self.action_name,
                 message="循环断言超时，任务退出。"
             ))
+        except UnableToGet as e:
+            logger.debug(ToolBox.runtime_report(
+                motive="QUIT",
+                action_name=self.action_name,
+                message=str(e).strip(),
+                url=page_link,
+            ))
         except SwitchContext as e:
             logger.warning(ToolBox.runtime_report(
                 motive="SWITCH",
                 action_name=self.action_name,
-                message="尝试切换驱动上下文进行人机挑战",
+                message="正在退出标准上下文",
                 error=str(e).strip(),
                 url=page_link,
             ))
-            ctx.quit()
-            return self.get_free_game(
-                page_link=page_link,
-                ctx_cookies=ctx_cookies,
-                ctx=get_challenge_ctx(self.silence)
-            )
         except PaymentException as e:
             logger.debug(ToolBox.runtime_report(
                 motive="QUIT",
@@ -258,5 +260,6 @@ class Bricklayer(AwesomeFreeMan):
             ))
             return False
         finally:
-            if ctx:
-                ctx.quit()
+            ctx.quit()
+
+        return True

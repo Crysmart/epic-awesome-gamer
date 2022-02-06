@@ -138,8 +138,10 @@ class ArmorCaptcha:
             "火车": "train",
             "卡车": "truck",
             "公交车": "bus",
+            "巴土": "bus",
             "飞机": "airplane",
             "ー条船": "boat",
+            "船": "boat",
             "汽车": "car",
             "摩托车": "motorcycle",
             "雨伞": "umbrella",
@@ -304,7 +306,6 @@ class ArmorCaptcha:
                     self.alias2locator[alias].click()
                 except WebDriverException:
                     pass
-
         # {{< SUBMIT ANSWER >}}
         WebDriverWait(ctx, 35, ignored_exceptions=ElementClickInterceptedException).until(
             EC.element_to_be_clickable((By.XPATH, "//div[@class='button-submit button']"))

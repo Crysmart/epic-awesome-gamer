@@ -35,6 +35,7 @@ def run():
     """
     with open(PATH_USR_COOKIES, "w", encoding="utf8") as f:
         f.write(ToolBox.transfer_cookies(ctx_cookies))
+
     logger.success(ToolBox.runtime_report(
         motive="GET",
         action_name="ChallengeRunner",

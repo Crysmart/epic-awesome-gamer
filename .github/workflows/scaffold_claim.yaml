@@ -1,0 +1,41 @@
+name: scaffold_claim
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    env:
+      EPIC_EMAIL: ${{ secrets.EPIC_EMAIL }}
+      EPIC_PASSWORD: ${{ secrets.EPIC_PASSWORD }}
+      PUSHER_EMAIL: ${{ secrets.PUSHER_EMAIL }}
+      PUSHER_DINGTALK: ${{ secrets.PUSHER_DINGTALK }}
+      PUSHER_TELEGRAM: ${{ secrets.PUSHER_TELEGRAM }}
+      PUSHER_SERVERCHAN: ${{ secrets.PUSHER_SERVERCHAN }}
+      PUSHER_DISCORD: ${{ secrets.DISCORD }}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.8
+
+      - name: Install requirements
+        run: |
+          pip install -r requirements.txt
+
+      - name: Scaffold Init
+        run: |
+          cd src && python main.py
+
+      - name: Scaffold Install
+        run: |
+          cd src && python main.py install
+
+      # 🦽哟！这可不兴嫖啊宝友！
+      - name: Scaffold Claim
+        run: |
+          export LANG=zh_CN.UTF8
+          cd src && python main.py claim
